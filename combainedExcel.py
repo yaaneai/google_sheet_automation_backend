@@ -64,12 +64,12 @@ def getFormattedSheet(sheetJson):
         # add header to page:
         #page header column names
         header_column = {
-            "ITEM":"",
-            "DESCRIPTION": "",
-            "QUANTITY": "",
-            "UNIT": "",
-            "RATE": [],
-            "AMOUNT SAR RIYAL": []
+            f"{header[0]}":"",
+            f"{header[1]}": "",
+            f"{header[2]}": "",
+            f"{header[3]}": "",
+            f"{header[4]}": [],
+            f"{header[5]}": []
         }
         for i in range(1,len(header)+1):
             column_to_insert = f"{chr(ord(startColumn) + (i-1))}" 
@@ -96,7 +96,7 @@ def getFormattedSheet(sheetJson):
             section_header_split_list = str.splitlines(page["Contractor"][0]["bill_section_header"][section_header_counter])
             for section_header_line in section_header_split_list:
                 if page["page_name"] not in section_header_line and len(section_header_line) != 0:
-                    cell_to_insert = f"{header_column["DESCRIPTION"]}{Row_num_to_insert}"
+                    cell_to_insert = f"{header_column[f"{header[1]}"]}{Row_num_to_insert}"
                     sheet[cell_to_insert]= section_header_line
                     Row_num_to_insert=Row_num_to_insert+1
                 else:
@@ -104,12 +104,12 @@ def getFormattedSheet(sheetJson):
             Row_num_to_insert=Row_num_to_insert+1
             for section_item_counter in range(0,len(page["Contractor"][0]["bill_section_items"][section_header_counter])):
                 combained_section_item = {
-                    "ITEM":"",
-                    "DESCRIPTION": "",
-                    "QUANTITY": 0,
-                    "UNIT": "",
-                    "RATE": [],
-                    "AMOUNT SAR RIYAL": []
+                    f"{header[0]}":"",
+                    f"{header[1]}": "",
+                    f"{header[2]}": 0,
+                    f"{header[3]}": "",
+                    f"{header[4]}": [],
+                    f"{header[5]}": []
                 }
                 # get the items from each contractor combine and store it as dict 
                 for contractor in range(0, number_of_contractors):
@@ -120,27 +120,27 @@ def getFormattedSheet(sheetJson):
 
                     item = page["Contractor"][contractor]["bill_section_items"][section_header_counter][section_item_counter]
                     if contractor == 0:
-                        combained_section_item["ITEM"]=item["ITEM"]
-                        combained_section_item["DESCRIPTION"]=item["DESCRIPTION"]
-                        combained_section_item["QUANTITY"]=item["QUANTITY"]
-                        combained_section_item["UNIT"]=item["UNIT"]
-                        combained_section_item["RATE"].append(item["RATE"])
-                        combained_section_item["AMOUNT SAR RIYAL"].append(item["AMOUNT SAR RIYAL"])
+                        combained_section_item[f"{header[0]}"]=item[f"{header[0]}"]
+                        combained_section_item[f"{header[1]}"]=item[f"{header[1]}"]
+                        combained_section_item[f"{header[2]}"]=item[f"{header[2]}"]
+                        combained_section_item[f"{header[3]}"]=item[f"{header[3]}"]
+                        combained_section_item[f"{header[4]}"].append(item[f"{header[4]}"])
+                        combained_section_item[f"{header[5]}"].append(item[f"{header[5]}"])
                     else:
-                        combained_section_item["RATE"].append(item["RATE"])
-                        combained_section_item["AMOUNT SAR RIYAL"].append(item["AMOUNT SAR RIYAL"])
+                        combained_section_item[f"{header[4]}"].append(item[f"{header[4]}"])
+                        combained_section_item[f"{header[5]}"].append(item[f"{header[4]}"])
                 
                 for key, value in combained_section_item.items():
                     if key in commonColumns:
                         cell_to_insert = f"{header_column[key]}{Row_num_to_insert}"
                         sheet[cell_to_insert]=value
-                        if key == "UNIT":
+                        if key == f"{header[3]}":
                             sheet[cell_to_insert].alignment = Alignment(horizontal="center", vertical="center")
                     else:
                         for i in range(0,len(value)):
                             cell_to_insert = f"{header_column[key][i]}{Row_num_to_insert}"
                             sheet[cell_to_insert]=value[i]
-                            if key == "RATE" and value[i]==max(value):
+                            if key == f"{header[4]}" and value[i]==max(value):
                                 sheet[cell_to_insert].fill = PatternFill(start_color="ff0000", end_color="ff0000", fill_type="solid")
                 Row_num_to_insert=Row_num_to_insert+2
                 
@@ -152,7 +152,7 @@ def getFormattedSheet(sheetJson):
                 sheet[startCell]="Total - Saudi Riyal Carried to Collection"
                 sheet[startCell].alignment = Alignment(horizontal="right", vertical="center")
                 sheet[startCell].font = Font(bold=True)
-            cell_to_insert= f"{header_column["AMOUNT SAR RIYAL"][contractor]}{Row_num_to_insert}"
+            cell_to_insert= f"{header_column[f"{header[5]}"][contractor]}{Row_num_to_insert}"
             total= page["Contractor"][contractor]["total"]
             sheet[cell_to_insert]= total
             sheet[cell_to_insert].font = Font(bold=True)

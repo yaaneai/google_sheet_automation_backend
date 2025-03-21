@@ -1,12 +1,14 @@
 from openpyxl import load_workbook as LWB
 from combainedExcel import getFormattedSheet
+import numpy as np
 import pandas as pd
 import os
 import json
 import re
-directory_path = "C:\\Users\\Vignesh\\Documents\\RLB Automations\\files"
+directory_path = "C:\\Users\\Vignesh\\Documents\\google_sheet_automation_backend\\files"
 xlsx_files = [f for f in os.listdir(directory_path) if f.endswith(".xlsx")]
-header = ['ITEM','DESCRIPTION','QUANTITY','UNIT','RATE']
+actualheader = []
+header = []
 if len(xlsx_files) > 0:
     workbook = []
     for file in xlsx_files:
@@ -20,6 +22,7 @@ if len(xlsx_files) > 0:
         }
         pdsheet=pd.read_excel(workbook[0],sheet)
         cleaned_data = pdsheet.dropna(how='all').dropna(axis=1, how='all')
+        #getting available Page names
         page_name_array = []
         page_no = 0
         for index, row in cleaned_data.iterrows():
@@ -49,6 +52,12 @@ if len(xlsx_files) > 0:
                 preprocessed_data = sheetdata.dropna(how='all').dropna(axis=1, how='all')
                 preprocessed_data.reset_index(drop=True, inplace=True)
                 for index, row in preprocessed_data.iterrows():
+                    x = row.dropna().values.tolist()
+                    if all(str(item).replace(' ', '').isalpha() for item in x) and len(header) == 0 and row.isnull().sum() <= 1:
+                        for item in x:
+                            header.append(item)
+
+                    print(x) 
                     if (set(row.values) & set(header)) and preprocessed_data.iloc[index+1].dropna().values[0] == page:
                         Contractor_page_info_item = {
                             "contractor_name":"",
@@ -59,6 +68,7 @@ if len(xlsx_files) > 0:
                         Contractor_page_info_item["contractor_name"]=os.path.splitext(os.path.split(contractor)[1])[0]
                         if pd.isna(row.values[5]):
                             preprocessed_data.at[index, preprocessed_data.columns[5]] = 'AMOUNT SAR RIYAL'
+                            header.append('AMOUNT SAR RIYAL')
                             inx=index+1
                             non_billable_description = ""
                             item_array = []
@@ -73,12 +83,12 @@ if len(xlsx_files) > 0:
                                 non_billable_description = ""
                                 while re.fullmatch(r"[A-Z]", str(preprocessed_data.iloc[inx].values[0])):# true only ITEM cell has A-Z value
                                     item_array.append({
-                                        "ITEM":preprocessed_data.iloc[inx].values[0],
-                                        "DESCRIPTION": preprocessed_data.iloc[inx].values[1],
-                                        "QUANTITY": preprocessed_data.iloc[inx].values[2],
-                                        "UNIT": preprocessed_data.iloc[inx].values[3],
-                                        "RATE": preprocessed_data.iloc[inx].values[4],
-                                        "AMOUNT SAR RIYAL": preprocessed_data.iloc[inx].values[5]
+                                        f"{header[0]}":preprocessed_data.iloc[inx].values[0],
+                                        f"{header[1]}": preprocessed_data.iloc[inx].values[1],
+                                        f"{header[2]}": preprocessed_data.iloc[inx].values[2],
+                                        f"{header[3]}": preprocessed_data.iloc[inx].values[3],
+                                        f"{header[4]}": preprocessed_data.iloc[inx].values[4],
+                                        f"{header[5]}": preprocessed_data.iloc[inx].values[5]
                                         })
                                     inx=inx+1
                                 Contractor_page_info_item["bill_section_items"].append(item_array)
