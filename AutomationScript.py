@@ -46,7 +46,7 @@ if uploaded_file and not st.session_state.processed:
         prog_bar_obj = st.progress(0, "Processing files. Please wait...")
         for file in xlsx_files:
             try:
-                workbook.append(pd.ExcelFile(f'{directory_path}\\{file}', engine='openpyxl'))
+                workbook.append(pd.ExcelFile(os.path.join(directory_path, file), engine='openpyxl'))
             except zipfile.BadZipFile:
                 print(f"Skipping invalid or corrupted file: {file}")
             except Exception as e:
