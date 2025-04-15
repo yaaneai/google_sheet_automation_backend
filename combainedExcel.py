@@ -78,8 +78,6 @@ def getFormattedSheet(sheetJson, sheetIndex):
             sheet[startCell]= value_to_insert = formatted_josn["page"][0]["Contractor"][i-1]["contractor_name"]
             sheet[startCell].alignment = Alignment(horizontal="center", vertical="center")
             sheet[startCell].font = Font(bold=True)
-            if formatted_josn["sheet"] == "B2-Sec R":
-                print("check")
             sheet[startCell].border = apply_border
         if i == 1:
             contracter_merge_cells_end_column = chr(ord(contracter_merge_cells_start_column) + 
@@ -93,6 +91,10 @@ def getFormattedSheet(sheetJson, sheetIndex):
     
     commonColumns_item_len = [len(i) for i in commonColumns]
     contractorColumns_item_len = [len(i) for i in contractorColums]
+    sum_of_sum_column = []
+    sum_of_sum_column.extend([[] for _ in range(number_of_contractors)])
+    sum_column =[]
+    sum_column.extend([[] for _ in range(number_of_contractors)])
     # getting into each page info
     for page in formatted_josn["page"]:
         # add header to page:
@@ -136,108 +138,136 @@ def getFormattedSheet(sheetJson, sheetIndex):
             freeze_column = chr(ord(header_column[commonColumns[len(commonColumns)-1]]) + 1)
             sheet.freeze_panes = f"{freeze_column}{Row_num_to_insert}"      
         applyBorderForContractorColumn()
-        Row_num_to_insert=Row_num_to_insert+1
+        Row_num_to_insert = Row_num_to_insert + 1
         #section_header and section_item
-        for section_header_counter in range(0,len(page["Contractor"][0]["bill_section_header"])):
-            section_header_split_list = str.splitlines(page["Contractor"][0]["bill_section_header"][section_header_counter])
-            header_item_counter = 0
-            for section_header_line in section_header_split_list:
-                #ignore page_name from section header and empty string
-                if page["page_name"] not in section_header_line and len(section_header_line) != 0:
-                    cell_to_insert = f"{header_column[f"{header[1]}"]}{Row_num_to_insert}"
-                    sheet[cell_to_insert]= section_header_line
-                    pre_max_len = commonColumns_item_len[commonColumns.index(header[1])]
-                    current_item_len = len(str(section_header_line))
-                    if pre_max_len < current_item_len:
-                        commonColumns_item_len[commonColumns.index(header[1])] = current_item_len
-                    if header_item_counter == 0:
-                        sheet[cell_to_insert].font = Font(bold=True)
-                    else:
-                        sheet[cell_to_insert].font = Font(underline="single")
-                    header_item_counter = header_item_counter +1
-                    applyBorderForContractorColumn()
-                    Row_num_to_insert=Row_num_to_insert+1
-                else:
-                    continue
-            applyBorderForContractorColumn()
-            Row_num_to_insert=Row_num_to_insert+1
-            for section_item_counter in range(len(page["Contractor"][0]["bill_section_items"][section_header_counter])):
-                combained_section_item = {header[col_inx]: [] if header[col_inx] in contractorColums else "" for col_inx in range(header_column_count)}
-                # get the items from each contractor combine and store it as dict 
-                for contractor in range(0, number_of_contractors):
-                    currentContractorSectionHeader = ""
-                    currentContractorDescription = ""
-                    try:
-                        currentContractorSectionHeader= page["Contractor"][contractor]["bill_section_header"][section_header_counter]
-                    except IndexError:
-                        currentContractorSectionHeader = "section header not found"
-                    templateSectionHeader = page["Contractor"][0]["bill_section_header"][section_header_counter]
-                    try: 
-                        currentContractorDescription = page["Contractor"][contractor]["bill_section_items"][section_header_counter][section_item_counter][header[1]]
-                    except IndexError:
-                        currentContractorDescription = "section item description not found"
-                    templateSectionDescription = page["Contractor"][0]["bill_section_items"][section_header_counter][section_item_counter][header[1]]
-                    templateItemQuantity = page["Contractor"][0]["bill_section_items"][section_header_counter][section_item_counter][header[2]]
-                    check_header_match = templateSectionHeader == currentContractorSectionHeader
-                    check_item_match = currentContractorDescription == templateSectionDescription
-                    try:
-                        item = page["Contractor"][contractor]["bill_section_items"][section_header_counter][section_item_counter]
-                    except IndexError:
-                        item = "section description not found"
-                    def get_rate_and_amount():
-                        if check_header_match and check_item_match and isinstance(item[header[4]],float):
-                            rate = float(item[header[4]]) if len(str(item[header[4]]))>0 else "UNPRICED"
-                            amount = templateItemQuantity*float(item[header[4]]) if isinstance(rate,float) else "UNPRICED"#templateItemQuantity*rate
-                            return {header[4]: rate, header[5]: amount}
-                        else:
-                            rate= "UNPRICED"
-                            amount = "UNPRICED"
-                            return {header[4]:rate, header[5]: amount}
-                    rate_and_amount = get_rate_and_amount()
-                    #assigning values to each item row
-                    for header_counter in range(len(commonColumns)+len(contractorColums)):
-                        templateSectionItems = page["Contractor"][0]["bill_section_items"][section_header_counter][section_item_counter]
-                        if header[header_counter] in commonColumns and contractor == 0:
-                            combained_section_item[header[header_counter]] = templateSectionItems[header[header_counter]]
-                        elif header[header_counter] in contractorColums:
-                            combained_section_item[header[header_counter]].append(rate_and_amount[header[header_counter]])
-                # inserting the item values in excel
-                for key, value in combained_section_item.items():
-                    if key in commonColumns:
-                        cell_to_insert = f"{header_column[key]}{Row_num_to_insert}"
-                        sheet[cell_to_insert]=value
-                        pre_max_len = commonColumns_item_len[commonColumns.index(key)]
-                        current_item_len = len(str(value))
+        try:
+            for section_header_counter in range(0,len(page["Contractor"][0]["bill_section_header"])):
+                section_header_split_list = str.splitlines(page["Contractor"][0]["bill_section_header"][section_header_counter])
+                header_item_counter = 0
+                for section_header_line in section_header_split_list:
+                    #ignore page_name from section header and empty string
+                    if page["page_name"] not in section_header_line and len(section_header_line) != 0:
+                        cell_to_insert = f"{header_column[f"{header[1]}"]}{Row_num_to_insert}"
+                        sheet[cell_to_insert]= section_header_line
+                        pre_max_len = commonColumns_item_len[commonColumns.index(header[1])]
+                        current_item_len = len(str(section_header_line))
                         if pre_max_len < current_item_len:
-                            commonColumns_item_len[commonColumns.index(key)] = current_item_len 
-                        if key == header[3] or key == header[0]:
-                            sheet[cell_to_insert].alignment = Alignment(horizontal="center", vertical="center")
+                            commonColumns_item_len[commonColumns.index(header[1])] = current_item_len
+                        if header_item_counter == 0:
+                            sheet[cell_to_insert].font = Font(bold=True)
+                        else:
+                            sheet[cell_to_insert].font = Font(underline="single")
+                        header_item_counter = header_item_counter +1
+                        applyBorderForContractorColumn()
+                        Row_num_to_insert=Row_num_to_insert+1
                     else:
-                        for i in range(0,len(value)):
-                            cell_to_insert = f"{header_column[key][i]}{Row_num_to_insert}" 
-                            if key == header[5] and isinstance(value[i],float):
-                                sheet[cell_to_insert]=f"=ROUND({header_column[header[2]]}{Row_num_to_insert}*{header_column[header[4]][i]}{Row_num_to_insert},2)"
-                                totals_column[i].append(cell_to_insert)
-                            else:
-                                sheet[cell_to_insert]=round(value[i],2) if isinstance(value[i], (int, float)) else value[i]
-                            if value[i]=="UNPRICED":
-                                sheet[cell_to_insert].fill = PatternFill(start_color="ffff00", end_color="ffff00", fill_type="solid")
-                            elif key == header[4]:
-                                #checks all RATE fields are priced
-                                if all(isinstance(item, float) for item in value):
-                                    if value[i]==max(value):
-                                        sheet[cell_to_insert].fill = PatternFill(start_color="ff0000", end_color="ff0000", fill_type="solid")
+                        continue
+                applyBorderForContractorColumn()
+                Row_num_to_insert=Row_num_to_insert+1
+                for section_item_counter in range(len(page["Contractor"][0]["bill_section_items"][section_header_counter])):
+                    combained_section_item = {header[col_inx]: [] if header[col_inx] in contractorColums else "" for col_inx in range(header_column_count)}
+                    # get the items from each contractor combine and store it as dict 
+                    for contractor in range(0, number_of_contractors):
+                        currentContractorSectionHeader = ""
+                        currentContractorDescription = ""
+                        try:
+                            currentContractorSectionHeader= page["Contractor"][contractor]["bill_section_header"][section_header_counter]
+                        except IndexError:
+                            currentContractorSectionHeader = "section header not found"
+                        templateSectionHeader = page["Contractor"][0]["bill_section_header"][section_header_counter]
+                        try: 
+                            currentContractorDescription = page["Contractor"][contractor]["bill_section_items"][section_header_counter][section_item_counter][header[1]]
+                        except IndexError:
+                            currentContractorDescription = "section item description not found"
+                        templateSectionDescription = page["Contractor"][0]["bill_section_items"][section_header_counter][section_item_counter][header[1]]
+                        templateItemQuantity = page["Contractor"][0]["bill_section_items"][section_header_counter][section_item_counter][header[2]]
+                        check_header_match = templateSectionHeader == currentContractorSectionHeader
+                        check_item_match = currentContractorDescription == templateSectionDescription
+                        try:
+                            item = page["Contractor"][contractor]["bill_section_items"][section_header_counter][section_item_counter]
+                        except IndexError:
+                            item = "section description not found"
+                        def get_rate_and_amount(page_name,templateSectionHeader,
+                                                            currentContractorSectionHeader,
+                                                            templateSectionDescription,
+                                                            currentContractorDescription
+                                                            ):
+                            if check_header_match and check_item_match and isinstance(item[header[4]],float) and "S" not in page_name[page_name.find("/"):]:
+                                rate = float(item[header[4]]) if len(str(item[header[4]]))>0 else "UNPRICED"
+                                amount = templateItemQuantity*float(item[header[4]]) if isinstance(rate,float) else "UNPRICED"#templateItemQuantity*rate
+                                return {header[4]: rate, header[5]: amount}
+                            #assigning the amount valu for sum page
+                            elif "S" in page["page_name"][page["page_name"].find("/"):]:# and check_header_match and check_item_match and isinstance(item[header[5]],float):
+                                if check_item_match:
+                                    rate = None
+                                    amount = None
+                                    for sum_column_item in sum_column[contractor]:
+                                        if templateSectionDescription in sum_column_item:
+                                            amount = f"={sum_column_item[templateSectionDescription]}"
+                                            break
+                                    return {header[4]:rate, header[5]: amount}
                                 else:
-                                    priced_value_list=[i for i in value if isinstance(i,float)]
-                                    if len(priced_value_list)>1 and value[i]==max(priced_value_list):
-                                        sheet[cell_to_insert].fill = PatternFill(start_color="ff0000", end_color="ff0000", fill_type="solid")
-                            if not(check_header_match) and check_item_match and value[i]=="UNPRICED":
-                                sheet[cell_to_insert].fill = PatternFill(start_color="0000ff", end_color="0000ff", fill_type="solid")
-                            val = round(value[i],2) if isinstance(value[i], (int, float)) else value[i]
-                            if len(str(val)) > contractorColumns_item_len[contractorColums.index(key)]:
-                                contractorColumns_item_len[contractorColums.index(key)] = len(str(val))
-                applyBorderForContractorColumn(2)
-                Row_num_to_insert = Row_num_to_insert+2                
+                                    return {header[4]:None, header[5]: "UNPRICED"}
+                            else:
+                                rate= "UNPRICED"
+                                amount = "UNPRICED"
+                                return {header[4]:rate, header[5]: amount}
+                        rate_and_amount = get_rate_and_amount(page["page_name"],
+                                                            templateSectionHeader,
+                                                            currentContractorSectionHeader,
+                                                            templateSectionDescription,
+                                                            currentContractorDescription
+                                                            )
+                        #assigning values to each item row
+                        for header_counter in range(len(commonColumns)+len(contractorColums)):
+                            templateSectionItems = page["Contractor"][0]["bill_section_items"][section_header_counter][section_item_counter]
+                            if header[header_counter] in commonColumns and contractor == 0:
+                                combained_section_item[header[header_counter]] = templateSectionItems[header[header_counter]]
+                            elif header[header_counter] in contractorColums:
+                                combained_section_item[header[header_counter]].append(rate_and_amount[header[header_counter]])
+                    # inserting the item values in excel
+                    for key, value in combained_section_item.items():
+                        if key in commonColumns:
+                            cell_to_insert = f"{header_column[key]}{Row_num_to_insert}"
+                            sheet[cell_to_insert]=value
+                            pre_max_len = commonColumns_item_len[commonColumns.index(key)]
+                            current_item_len = len(str(value))
+                            if pre_max_len < current_item_len:
+                                commonColumns_item_len[commonColumns.index(key)] = current_item_len 
+                            if key == header[3] or key == header[0]:
+                                sheet[cell_to_insert].alignment = Alignment(horizontal="center", vertical="center")
+                        else:
+                            for i in range(0,len(value)):
+                                cell_to_insert = f"{header_column[key][i]}{Row_num_to_insert}" 
+                                if key == header[5] and isinstance(value[i],float):
+                                    sheet[cell_to_insert]=f"=ROUND({header_column[header[2]]}{Row_num_to_insert}*{header_column[header[4]][i]}{Row_num_to_insert},2)"
+                                    totals_column[i].append(cell_to_insert)
+                                else:
+                                    sheet[cell_to_insert]=round(value[i],2) if isinstance(value[i], (int, float)) else value[i]
+                                    if key == header[5] and "S" in page["page_name"][page["page_name"].find("/"):]:
+                                        sum_of_sum_column[i].append(cell_to_insert)
+                                if value[i]=="UNPRICED":
+                                    sheet[cell_to_insert].fill = PatternFill(start_color="ffff00", end_color="ffff00", fill_type="solid")
+                                elif key == header[4]:
+                                    #checks all RATE fields are priced
+                                    if all(isinstance(item, float) for item in value):
+                                        if value[i]==max(value):
+                                            sheet[cell_to_insert].fill = PatternFill(start_color="ff0000", end_color="ff0000", fill_type="solid")
+                                    else:
+                                        priced_value_list=[i for i in value if isinstance(i,float)]
+                                        if len(priced_value_list)>1 and value[i]==max(priced_value_list):
+                                            sheet[cell_to_insert].fill = PatternFill(start_color="ff0000", end_color="ff0000", fill_type="solid")
+                                if not(check_header_match) and check_item_match and value[i]=="UNPRICED":
+                                    sheet[cell_to_insert].fill = PatternFill(start_color="0000ff", end_color="0000ff", fill_type="solid")
+                                val = round(value[i],2) if isinstance(value[i], (int, float)) else value[i]
+                                if len(str(val)) > contractorColumns_item_len[contractorColums.index(key)]:
+                                    contractorColumns_item_len[contractorColums.index(key)] = len(str(val))
+                    applyBorderForContractorColumn(2)
+                    Row_num_to_insert = Row_num_to_insert+2
+        except IndexError:
+            print(f"error: {IndexError}")
+            continue
+        #writing Total Amount in the Excel                
         for contractor in range(number_of_contractors):
             if contractor == 0:
                 startCell = f"{startColumn}{Row_num_to_insert}"
@@ -252,11 +282,15 @@ def getFormattedSheet(sheetJson, sheetIndex):
                     print("sum border check")
                 sheet[startCell].border = apply_border
             cell_to_insert= f"{header_column[f"{header[5]}"][contractor]}{Row_num_to_insert-1}"
-            sheet[cell_to_insert]= f"=ROUND(SUM({','.join(totals_column[contractor])}),2)"
+            if "S" in page["page_name"][page["page_name"].find("/"):]:
+                sheet[cell_to_insert]= f"=ROUND(SUM({','.join(sum_of_sum_column[contractor])}),2)"
+            else:
+                sheet[cell_to_insert]= f"=ROUND(SUM({','.join(totals_column[contractor])}),2)"
             sheet[cell_to_insert].font = Font(bold=True)
             sheet[f"{header_column[f"{header[5]}"][contractor]}{Row_num_to_insert-2}"].border = Border(
                 top=Side(border_style="thin", color="000000"),
                 right=Side(border_style="thin", color="000000"))
+            sum_column[contractor].append({page["page_name"]:cell_to_insert})
         applyBorderForContractorColumn()
         for i in range(1,len(header)+1):
             column_to_insert = f"{chr(ord(startColumn) + (i-1))}"

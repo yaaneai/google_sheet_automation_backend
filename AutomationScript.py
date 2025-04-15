@@ -33,7 +33,7 @@ if len(xlsx_files) > 0:
         for index, row in cleaned_data.iterrows():
             page_n = row.dropna().values[0]
             if isinstance(page_n,str):
-                if "PAGE" in page_n and page_n not in page_name_array:
+                if "PAGE" in page_n and page_n not in page_name_array and len(row.dropna()) == 1:
                     page_name_array.append(page_n)
                     if page_n[-1] == "S":
                         break
@@ -44,9 +44,8 @@ if len(xlsx_files) > 0:
         title5 = cleaned_data.iloc[3].dropna().values[0]
         combainedJson["title"] = f"{title1}\n{title2}\n{title3}\n{title4}\n{title5}"
         startInx = [0 for i in range(len(workbook))]
+        
         for page in page_name_array:
-            if page[-1] == "S":
-                print("debug for Page S")
             print("fetching: ",page)
             header = []
             page_info_item = {
@@ -56,7 +55,7 @@ if len(xlsx_files) > 0:
             #goto_page = page_name_array.index(page)+1
             page_info_item["page_name"] = page
             for contractor in workbook:
-                sheetdata=pd.read_excel(contractor,sheet)
+                sheetdata = pd.read_excel(contractor,sheet)
                 preprocessed_data = sheetdata.dropna(how='all').dropna(axis=1, how='all')
                 preprocessed_data.reset_index(drop=True, inplace=True)
                 for index, row in preprocessed_data.iloc[startInx[workbook.index(contractor)]:].iterrows():
@@ -72,7 +71,7 @@ if len(xlsx_files) > 0:
                             "bill_section_items":[],
                             "total":""
                             }
-                        Contractor_page_info_item["contractor_name"]=os.path.splitext(os.path.split(contractor)[1])[0]
+                        Contractor_page_info_item["contractor_name"] = os.path.splitext(os.path.split(contractor)[1])[0]
                         if pd.isna(row.values[5]):
                             preprocessed_data.at[index, preprocessed_data.columns[5]] = 'AMOUNT SAR RIYAL'
                             if 'AMOUNT SAR RIYAL' not in header:
@@ -82,10 +81,13 @@ if len(xlsx_files) > 0:
                             item_array = []
                         #get into quotation data collects section header data
                         while not(set(preprocessed_data.iloc[inx].values) & set(header)) and inx < len(preprocessed_data)-1:
+                            header_data = str(preprocessed_data.iloc[inx].dropna().values[0])
                             def bill_section():
-                                if pd.isna(preprocessed_data.iloc[inx].values[0]) and "Total" not in str(preprocessed_data.iloc[inx].dropna().values[0]): #collects only bill_section_header
+                                page_n_total_not_in_data = "PAGE" not in header_data and "Total" not in header_data
+                                if pd.isna(preprocessed_data.iloc[inx].values[0]) and page_n_total_not_in_data: #collects only bill_section_header
                                     global non_billable_description
                                     non_billable_description = f"{non_billable_description}\n{preprocessed_data.iloc[inx].dropna().values[0]}"
+
                             bill_section()
                             #finding the item row under section header by checking the item column has 'A'-'Z'
                             if re.fullmatch(r"[A-Z]", str(preprocessed_data.iloc[inx].values[0])):
@@ -104,6 +106,21 @@ if len(xlsx_files) > 0:
                                 Contractor_page_info_item["bill_section_items"].append(item_array)
                                 item_array = []
                                 bill_section()
+                            elif "PAGE" in header_data and "PAGE" in str(preprocessed_data.iloc[inx].values[1]):
+                                Contractor_page_info_item["bill_section_header"].append(non_billable_description)
+                                non_billable_description = ""
+                                while "Total" not in str(preprocessed_data.iloc[inx].dropna().values[0]):
+                                    item_array.append({
+                                        f"{header[0]}":preprocessed_data.iloc[inx].values[0],
+                                        f"{header[1]}": preprocessed_data.iloc[inx].values[1],
+                                        f"{header[2]}": preprocessed_data.iloc[inx].values[2],
+                                        f"{header[3]}": preprocessed_data.iloc[inx].values[3],
+                                        f"{header[4]}": preprocessed_data.iloc[inx].values[4],
+                                        f"{header[5]}": preprocessed_data.iloc[inx].values[5]
+                                        })
+                                    inx=inx+1
+                                Contractor_page_info_item["bill_section_items"].append(item_array)
+                                item_array = []
                             #collects the data from total field of the page  
                             if pd.isna(preprocessed_data.iloc[inx].values).any() and "Total" in str(preprocessed_data.iloc[inx].dropna().values[0]):
                                 while not(set(preprocessed_data.iloc[inx].values) & set(header)) and inx < len(preprocessed_data)-1:
@@ -117,7 +134,6 @@ if len(xlsx_files) > 0:
                                 if Contractor_page_info_item not in page_info_item["Contractor"]:
                                     page_info_item["Contractor"].append(Contractor_page_info_item)
                                 break
-
                             inx=inx+1
                     else:
                         continue
