@@ -1,9 +1,11 @@
 # from sampleJson import formattedSheet
+import sys
 import json
 from openpyxl import Workbook
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, PatternFill, Border, Font, Side
 from openpyxl.worksheet.pagebreak import Break
+import streamlit as st
 # from utils import prog_bar_obj
 apply_border = Border(
     left=Side(border_style="thin", color="000000"),
@@ -28,8 +30,12 @@ def increment_column(column):
 
 
 def getFormattedSheet(sheetJson, sheetIndex,sheet_name, progress):
-    formatted_josn = json.loads(sheetJson)    
-    header = list(formatted_josn["page"][0]["Contractor"][0]["bill_section_items"][0][0].keys())
+    formatted_josn = json.loads(sheetJson)
+    try:     
+        header = list(formatted_josn["page"][0]["Contractor"][0]["bill_section_items"][0][0].keys())
+    except Exception as e:
+        st.error("The structure of your Excel file appears to be incorrect.\nPlease reload the page and upload a properly formatted Excel file to continue.")
+        sys.exit()
     number_of_contractors = len(formatted_josn["page"][0]["Contractor"])
     commonColumns = header[0:len(header)-2]
     contractorColums = header[len(header)-2:len(header)]
@@ -47,10 +53,6 @@ def getFormattedSheet(sheetJson, sheetIndex,sheet_name, progress):
                 for ConColName in header_column[conCol]:
                     sheet[f"{ConColName}{Row_num_to_insert+j}"].border = Border(
                     right=Side(border_style="thin", color="000000"))
-                # sheet[f"{contractor_column_name[i][0]}{Row_num_to_insert+j}"].border = Border(
-                #     left=Side(border_style="thin", color="000000"))
-                # sheet[f"{contractor_column_name[i][1]}{Row_num_to_insert+j}"].border = Border(
-                #     right=Side(border_style="thin", color="000000"))
         
     for i in range(1,len(header)):
         endColumn = increment_column(startColumn if i==1 else endColumn)
@@ -76,7 +78,7 @@ def getFormattedSheet(sheetJson, sheetIndex,sheet_name, progress):
             startCell =f"{contracter_merge_cells_start_column}{Row_num_to_insert}"
             sheet.merge_cells(f"{startCell}:{contracter_merge_cells_end_column}{Row_num_to_insert}")
             contractor_column_name.append([contracter_merge_cells_start_column,contracter_merge_cells_end_column])
-            sheet[startCell]= value_to_insert = formatted_josn["page"][0]["Contractor"][i-1]["contractor_name"]
+            sheet[startCell]= formatted_josn["page"][0]["Contractor"][i-1]["contractor_name"]
             sheet[startCell].alignment = Alignment(horizontal="center", vertical="center")
             sheet[startCell].font = Font(bold=True)
             sheet[startCell].border = apply_border
@@ -188,11 +190,7 @@ def getFormattedSheet(sheetJson, sheetIndex,sheet_name, progress):
                             item = page["Contractor"][contractor]["bill_section_items"][section_header_counter][section_item_counter]
                         except IndexError:
                             item = "section description not found"
-                        def get_rate_and_amount(page_name,templateSectionHeader,
-                                                            currentContractorSectionHeader,
-                                                            templateSectionDescription,
-                                                            currentContractorDescription
-                                                            ):
+                        def get_rate_and_amount(page_name,templateSectionDescription):
                             if check_header_match and check_item_match and isinstance(item[header[4]],float) and "S" not in page_name[page_name.find("/"):]:
                                 rate = float(item[header[4]]) if len(str(item[header[4]]))>0 else "UNPRICED"
                                 amount = templateItemQuantity*float(item[header[4]]) if isinstance(rate,float) else "UNPRICED"#templateItemQuantity*rate
@@ -214,11 +212,7 @@ def getFormattedSheet(sheetJson, sheetIndex,sheet_name, progress):
                                 amount = "UNPRICED"
                                 return {header[4]:rate, header[5]: amount}
                         rate_and_amount = get_rate_and_amount(page["page_name"],
-                                                            templateSectionHeader,
-                                                            currentContractorSectionHeader,
-                                                            templateSectionDescription,
-                                                            currentContractorDescription
-                                                            )
+                                                            templateSectionDescription)
                         #assigning values to each item row
                         for header_counter in range(len(commonColumns)+len(contractorColums)):
                             templateSectionItems = page["Contractor"][0]["bill_section_items"][section_header_counter][section_item_counter]

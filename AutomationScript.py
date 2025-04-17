@@ -27,7 +27,7 @@ if len(xlsx_files) > 0:
                 os.remove(file_path)
         except Exception as e:
             print(f"Error deleting {file_path}: {e}")
-uploaded_file = st.file_uploader("Choose a file", type=["xlsx", "xls"], accept_multiple_files=True)
+uploaded_file = st.file_uploader("Upload files", type=["xlsx", "xls"], accept_multiple_files=True)
 
 if uploaded_file and not st.session_state.processed:
     for file in uploaded_file:
