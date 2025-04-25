@@ -3,7 +3,7 @@ import sys
 import json
 from openpyxl import Workbook
 from openpyxl import load_workbook
-from openpyxl.styles import Alignment, PatternFill, Border, Font, Side
+from openpyxl.styles import Alignment, PatternFill, Border, Font, Side, numbers
 from openpyxl.worksheet.pagebreak import Break
 import streamlit as st
 # from utils import prog_bar_obj
@@ -191,11 +191,11 @@ def getFormattedSheet(sheetJson, sheetIndex,sheet_name, progress):
                         except IndexError:
                             item = "section description not found"
                         def get_rate_and_amount(page_name,templateSectionDescription):
-                            if check_header_match and check_item_match and isinstance(item[header[4]],float) and "S" not in page_name[page_name.find("/"):]:
+                            if check_header_match and check_item_match and isinstance(item[header[4]],(int, float)) and "S" not in page_name[page_name.find("/"):]:
                                 rate = float(item[header[4]]) if len(str(item[header[4]]))>0 else "UNPRICED"
-                                amount = templateItemQuantity*float(item[header[4]]) if isinstance(rate,float) else "UNPRICED"#templateItemQuantity*rate
+                                amount = templateItemQuantity*float(item[header[4]]) if isinstance(rate,(int, float)) else "UNPRICED"#templateItemQuantity*rate
                                 return {header[4]: rate, header[5]: amount}
-                            #assigning the amount valu for sum page
+                            #assigning the amount value for sum page
                             elif "S" in page["page_name"][page["page_name"].find("/"):]:# and check_header_match and check_item_match and isinstance(item[header[5]],float):
                                 if check_item_match:
                                     rate = None
@@ -224,9 +224,15 @@ def getFormattedSheet(sheetJson, sheetIndex,sheet_name, progress):
                     for key, value in combained_section_item.items():
                         if key in commonColumns:
                             cell_to_insert = f"{header_column[key]}{Row_num_to_insert}"
-                            sheet[cell_to_insert]=value
                             pre_max_len = commonColumns_item_len[commonColumns.index(key)]
-                            current_item_len = len(str(value))
+                            if len(str(value)) > 80:
+                                import textwrap
+                                value = textwrap.fill(str(value), width=80)
+                                sheet[cell_to_insert].alignment = Alignment(wrap_text=True)
+                                current_item_len = 80
+                            else :
+                                current_item_len = len(str(value))
+                            sheet[cell_to_insert]=value
                             if pre_max_len < current_item_len:
                                 commonColumns_item_len[commonColumns.index(key)] = current_item_len 
                             if key == header[3] or key == header[0]:
@@ -234,22 +240,27 @@ def getFormattedSheet(sheetJson, sheetIndex,sheet_name, progress):
                         else:
                             for i in range(0,len(value)):
                                 cell_to_insert = f"{header_column[key][i]}{Row_num_to_insert}" 
-                                if key == header[5] and isinstance(value[i],float):
+                                if key == header[5] and isinstance(value[i],(int,float)):
                                     sheet[cell_to_insert]=f"=ROUND({header_column[header[2]]}{Row_num_to_insert}*{header_column[header[4]][i]}{Row_num_to_insert},2)"
                                     totals_column[i].append(cell_to_insert)
+                                    sheet[cell_to_insert].number_format = "#,##0.00"
                                 else:
-                                    sheet[cell_to_insert]=round(value[i],2) if isinstance(value[i], (int, float)) else value[i]
+                                    if isinstance(value[i], (int, float)):
+                                        sheet[cell_to_insert] = round(value[i],2) 
+                                        sheet[cell_to_insert].number_format = "#,##0.00"
+                                    else:
+                                        sheet[cell_to_insert] = value[i]
                                     if key == header[5] and "S" in page["page_name"][page["page_name"].find("/"):]:
                                         sum_of_sum_column[i].append(cell_to_insert)
                                 if value[i]=="UNPRICED":
                                     sheet[cell_to_insert].fill = PatternFill(start_color="ffff00", end_color="ffff00", fill_type="solid")
                                 elif key == header[4]:
                                     #checks all RATE fields are priced
-                                    if all(isinstance(item, float) for item in value):
+                                    if all(isinstance(item, (float,int)) for item in value):
                                         if value[i]==max(value):
                                             sheet[cell_to_insert].fill = PatternFill(start_color="ff0000", end_color="ff0000", fill_type="solid")
                                     else:
-                                        priced_value_list=[i for i in value if isinstance(i,float)]
+                                        priced_value_list=[i for i in value if isinstance(i,(int,float))]
                                         if len(priced_value_list)>1 and value[i]==max(priced_value_list):
                                             sheet[cell_to_insert].fill = PatternFill(start_color="ff0000", end_color="ff0000", fill_type="solid")
                                 if not(check_header_match) and check_item_match and value[i]=="UNPRICED":
@@ -277,8 +288,10 @@ def getFormattedSheet(sheetJson, sheetIndex,sheet_name, progress):
             cell_to_insert= f"{header_column[f"{header[5]}"][contractor]}{Row_num_to_insert-1}"
             if "S" in page["page_name"][page["page_name"].find("/"):]:
                 sheet[cell_to_insert]= f"=ROUND(SUM({','.join(sum_of_sum_column[contractor])}),2)"
+                sheet[cell_to_insert].number_format = "#,##0.00"
             else:
                 sheet[cell_to_insert]= f"=ROUND(SUM({','.join(totals_column[contractor])}),2)"
+                sheet[cell_to_insert].number_format = "#,##0.00"
             sheet[cell_to_insert].font = Font(bold=True)
             sheet[f"{header_column[f"{header[5]}"][contractor]}{Row_num_to_insert-2}"].border = Border(
                 top=Side(border_style="thin", color="000000"),

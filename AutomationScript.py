@@ -90,7 +90,6 @@ if uploaded_file and not st.session_state.processed:
                     "Contractor": [],
                 }
                 page_info_item["page_name"] = page
-
                 for contractor in workbook:
                     sheetdata = pd.read_excel(contractor, sheet)
                     preprocessed_data = sheetdata.dropna(how='all').dropna(axis=1, how='all')
@@ -178,7 +177,7 @@ if uploaded_file and not st.session_state.processed:
                                 inx = inx + 1
                         else:
                             continue
-                        startInx[workbook.index(contractor)] = inx + 1
+                        startInx[workbook.index(contractor)] = inx
                         break
                 combainedJson["page"].append(page_info_item)
             work_book = getFormattedSheet(json.dumps(combainedJson), sheet_name.index(sheet), sheet, progress)
